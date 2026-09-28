@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>赛鸽运输笼周转台</title>
+  <style>
+    :root { --bg:#eff2f5; --panel:#fff; --ink:#1f2833; --muted:#697786; --line:#d3dce4; --accent:#315f83;
+            --green:#2e6b46; --amber:#9a6a1c; --orange:#b25b1f; --red:#9b3f35; --blue:#2f5d8f; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:Arial,"PingFang SC",sans-serif; }
+    header { padding:20px 28px; background:#fff; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:16px; align-items:center; }
+    h1 { margin:0; font-size:24px; } h2 { margin:0 0 12px; font-size:17px; } h3 { margin:0; font-size:15px; }
+    .meta { color:var(--muted); font-size:13px; }
+    nav { display:flex; gap:8px; padding:14px 28px 0; }
+    nav button { background:#e4eaf0; color:var(--ink); }
+    nav button.active { background:var(--accent); color:#fff; }
+    main { padding:18px 28px 32px; }
+    .layout { display:grid; grid-template-columns:minmax(360px,420px) 1fr; gap:18px; align-items:start; }
+    form,.panel,.card,.stat { background:#fff; border:1px solid var(--line); border-radius:8px; padding:15px; }
+    label { display:block; margin:9px 0 4px; color:var(--muted); font-size:13px; }
+    input,select { width:100%; border:1px solid var(--line); border-radius:6px; padding:8px; font:inherit; }
+    button { border:0; border-radius:6px; background:var(--accent); color:#fff; padding:9px 12px; font-weight:700; cursor:pointer; font-size:13px; }
+    button.ghost { background:#e4eaf0; color:var(--ink); }
+    button.small { padding:5px 9px; font-size:12px; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .stack { display:grid; gap:12px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+    .pill { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:2px 9px; font-size:12px; white-space:nowrap; }
+    .s-available { background:#e8f3ec; color:var(--green); border-color:#b9d8c5; }
+    .s-in_use { background:#e7f0f9; color:var(--blue); border-color:#bccfe4; }
+    .s-pending_disinfection { background:#faf2e2; color:var(--amber); border-color:#e6d3a8; }
+    .s-pending_review { background:#fdeede; color:var(--orange); border-color:#ecc9a4; }
+    .s-stopped { background:#f8e7e5; color:var(--red); border-color:#e3bcb7; }
+    .slots { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:10px; }
+    .slot { border:1px solid var(--line); border-radius:6px; padding:7px 4px; text-align:center; font-size:12px; min-height:52px; display:flex; flex-direction:column; justify-content:space-between; gap:3px; background:#fbfcfd; }
+    .slot.used { border-color:var(--blue); background:#eef5fb; }
+    .slot b { word-break:break-all; font-size:11px; }
+    .stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+    .stat .num { font-size:26px; font-weight:700; margin-top:4px; }
+    .list { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .msg { margin-top:10px; font-size:13px; border-radius:6px; padding:9px; display:none; }
+    .msg.ok { display:block; background:#e8f3ec; color:var(--green); }
+    .msg.err { display:block; background:#f8e7e5; color:var(--red); white-space:pre-wrap; }
+    .timeline { border-left:3px solid var(--line); margin-left:6px; padding-left:14px; display:grid; gap:10px; }
+    .tl { position:relative; font-size:13px; }
+    .tl::before { content:""; position:absolute; left:-21px; top:3px; width:9px; height:9px; border-radius:50%; background:var(--accent); }
+    .section { margin-top:16px; }
+    .toolbar { display:grid; grid-template-columns:1fr auto; gap:10px; margin-bottom:12px; }
+    .inline-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+    .hidden { display:none; }
+    @media (max-width:960px){ .layout{grid-template-columns:1fr;} main,header,nav{padding-left:14px;padding-right:14px;} }
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1>赛鸽运输笼周转台</h1><div class="meta">一鸽一笼位 · 换笼留痕 · 消毒达标 · 次日复核方可再装</div></div>
+    <button id="reload">刷新</button>
+  </header>
+  <nav>
+    <button id="tabTurnover" class="active">运输笼周转</button>
+    <button id="tabPedigree" class="ghost">血统档案（原登记站）</button>
+  </nav>
+
+  <main>
+    <!-- ===================== 周转台 ===================== -->
+    <section id="viewTurnover">
+      <div class="stat-row">
+        <div class="stat"><div class="meta">待消毒笼</div><div class="num" id="stPendingD">–</div></div>
+        <div class="stat"><div class="meta">可用笼位（空位数）</div><div class="num" id="stFree">–</div></div>
+        <div class="stat"><div class="meta">停用 / 待复核笼</div><div class="num" id="stHold">–</div></div>
+      </div>
+
+      <div class="layout">
+        <!-- 操作栏 -->
+        <div class="stack">
+          <form id="fLoad" class="panel">
+            <h2>① 装鸽入笼</h2>
+            <div class="row">
+              <div><label>笼子</label><select name="cageId" data-cages="loadable"></select></div>
+              <div><label>笼位</label><select name="slot" data-slots></select></div>
+            </div>
+            <label>足环号</label><input name="ringNo" required placeholder="如 CHN-2026-001">
+            <div class="row">
+              <div><label>经办人</label><input name="operator" required></div>
+              <div><label>押运人（空笼首装必填）</label><input name="escort" placeholder="续装时沿用首装"></div>
+            </div>
+            <label>时间（留空取当前）</label><input name="time" type="datetime-local" step="1">
+            <div class="inline-actions"><button>装鸽</button></div>
+            <div class="msg"></div>
+          </form>
+
+          <form id="fMove" class="panel">
+            <h2>② 换笼（留时间与经办人）</h2>
+            <label>足环号</label><input name="ringNo" required placeholder="每只足环只能在当前一个笼位">
+            <div class="row">
+              <div><label>目标笼</label><select name="toCageId" data-cages="loadable"></select></div>
+              <div><label>目标笼位</label><select name="toSlot" data-slots></select></div>
+            </div>
+            <label>经办人</label><input name="operator" required>
+            <label>时间（留空取当前）</label><input name="time" type="datetime-local" step="1">
+            <div class="inline-actions"><button>办理换笼</button></div>
+            <div class="meta">源笼若因此清空，自动进入“待消毒”。</div>
+            <div class="msg"></div>
+          </form>
+
+          <form id="fUnload" class="panel">
+            <h2>③ 卸鸽</h2>
+            <div class="row">
+              <div><label>笼子</label><select name="cageId" data-cages="in_use"></select></div>
+              <div><label>笼位</label><select name="slot" data-slots></select></div>
+            </div>
+            <label>经办人</label><input name="operator" required>
+            <label>时间（留空取当前）</label><input name="time" type="datetime-local" step="1">
+            <div class="inline-actions"><button>卸鸽</button></div>
+            <div class="meta">卸出最后一只，该笼进入待消毒。</div>
+            <div class="msg"></div>
+          </form>
+
+          <form id="fDisinfect" class="panel">
+            <h2>④ 登记消毒（待消毒笼）</h2>
+            <label>笼子</label><select name="cageId" data-cages="pending_disinfection"></select>
+            <label>药液批号</label><input name="batchNo" required placeholder="如 XD-20260928-A">
+            <div class="row">
+              <div><label>起（接触开始）</label><input name="startedAt" type="datetime-local" step="1" required></div>
+              <div><label>止（接触结束）</label><input name="endedAt" type="datetime-local" step="1" required></div>
+            </div>
+            <label>消毒操作人（与押运人相同则停用）</label><input name="operator" required>
+            <div class="inline-actions"><button>提交判定</button></div>
+            <div class="meta">接触不足十分钟或操作人＝押运人：继续停用。</div>
+            <div class="msg"></div>
+          </form>
+
+          <form id="fReview" class="panel">
+            <h2>⑤ 次日复核</h2>
+            <label>笼子</label><select name="cageId" data-cages="pending_review"></select>
+            <div class="row">
+              <div><label>复核日期（须晚于消毒日）</label><input name="date" type="date" required></div>
+              <div><label>结论</label><select name="result"><option value="pass">合格（可再装鸽）</option><option value="fail">不合格（继续停用）</option></select></div>
+            </div>
+            <label>复核人</label><input name="reviewer" required>
+            <label>备注</label><input name="note">
+            <div class="inline-actions"><button>提交复核</button></div>
+            <div class="msg"></div>
+          </form>
+        </div>
+
+        <!-- 看板 -->
+        <div class="stack">
+          <div class="panel">
+            <h2>待消毒笼</h2>
+            <div class="list" id="pendingList"><span class="meta">暂无</span></div>
+          </div>
+          <div class="panel">
+            <h2>待复核 / 停用笼</h2>
+            <div class="meta">待复核</div>
+            <div class="list" id="reviewList" style="margin:6px 0 10px"><span class="meta">暂无</span></div>
+            <div class="meta">停用中（接触不足/同人操作/复核不合格）</div>
+            <div class="list" id="stoppedList" style="margin-top:6px"><span class="meta">暂无</span></div>
+          </div>
+          <div class="panel">
+            <h2>可用笼位与全部笼子</h2>
+            <div class="grid" id="cageCards"></div>
+          </div>
+          <div class="panel">
+            <h2>每鸽履历</h2>
+            <div class="toolbar"><input id="historyInput" placeholder="输入足环号查询当前笼位与周转履历"><button id="historyBtn">查履历</button></div>
+            <div id="historyBox"><p class="meta">按足环查询：当前笼位、装/换/卸时间与经办人、消毒批号与复核结论。</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 原血统档案 ===================== -->
+    <section id="viewPedigree" class="hidden">
+      <div class="layout">
+        <form id="formPigeon" class="panel">
+          <h2>创建鸽只档案</h2>
+          <label>足环号</label><input name="ringNo" required>
+          <label>鸽主</label><input name="owner" required>
+          <label>父鸽足环号</label><input name="fatherRing">
+          <label>母鸽足环号</label><input name="motherRing">
+          <label>羽色</label><input name="color" required>
+          <label>出生棚号</label><input name="loft" required>
+          <div class="inline-actions"><button>保存档案</button></div>
+          <div class="msg"></div>
+        </form>
+        <section class="stack">
+          <div class="panel">
+            <div class="toolbar"><input id="search" placeholder="输入足环号查询血统"><button id="searchBtn" class="ghost">查询</button></div>
+            <div id="detail" class="meta">请输入足环号查看父母、子代、转让和成绩。</div>
+          </div>
+          <div class="grid" id="cards"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    const STATUS_TEXT = { available:"可用", in_use:"使用中", pending_disinfection:"待消毒", pending_review:"待复核", stopped:"停用中" };
+    let overview = { cages: [] };
+
+    async function api(path, options) {
+      const res = await fetch(path, options && options.body ? { ...options, headers:{ "Content-Type":"application/json" } } : options);
+      const data = await res.json();
+      if (!res.ok) throw Object.assign(new Error(data.message || data.error || "请求失败"), { reason:data.error });
+      return data;
+    }
+    const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+    const fmt = t => t ? new Date(t).toLocaleString("zh-CN", { hour12:false }) : "";
+    const localInput = d => {
+      const pad = n => String(n).padStart(2,"0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    function bindMsg(form) {
+      const box = form.querySelector(".msg");
+      return (ok, text) => { box.className = "msg " + (ok ? "ok" : "err"); box.textContent = text; };
+    }
+
+    function slotOptions(cage, selected) {
+      if (!cage) return "";
+      const used = new Set(cage.slots.map(s => s.no));
+      let out = "";
+      for (let i = 1; i <= cage.capacity; i++) {
+        const no = String(i);
+        const occupant = cage.slots.find(s => s.no === no)?.ringNo;
+        out += `<option value="${no}"${selected === no ? " selected" : ""}>${no}${occupant ? "（占用：" + esc(occupant) + "）" : "（空）"}</option>`;
+      }
+      return out;
+    }
+
+    function fillSelectors() {
+      const cages = overview.cages;
+      const groups = {
+        loadable: cages.filter(c => c.status === "available" || c.status === "in_use"),
+        in_use: cages.filter(c => c.status === "in_use"),
+        pending_disinfection: cages.filter(c => c.status === "pending_disinfection" || c.status === "stopped"),
+        pending_review: cages.filter(c => c.status === "pending_review"),
+      };
+      document.querySelectorAll("select[data-cages]").forEach(sel => {
+        const list = groups[sel.dataset.cages] || [];
+        const prev = sel.value;
+        sel.innerHTML = list.length
+          ? list.map(c => `<option value="${c.id}">${c.id} · ${STATUS_TEXT[c.status]}${c.status === "available" ? "（空位" + (c.capacity - c.slots.length) + "）" : ""}</option>`).join("")
+          : `<option value="">（当前无可选笼）</option>`;
+        if (list.some(c => c.id === prev)) sel.value = prev;
+        sel.dispatchEvent(new Event("change"));
+      });
+    }
+
+    document.querySelectorAll("select[data-slots]").forEach(sel => {
+      sel.addEventListener("focus", () => {
+        const cageSel = sel.closest("form").querySelector("select[data-cages], select[name='toCageId']");
+        const cage = overview.cages.find(c => c.id === cageSel.value);
+        sel.innerHTML = slotOptions(cage, sel.value);
+      });
+    });
+    document.querySelectorAll("form select[data-cages], form select[name='toCageId']").forEach(sel => {
+      sel.addEventListener("change", () => {
+        const slotSel = sel.closest("form").querySelector("select[data-slots]");
+        if (!slotSel) return;
+        const cage = overview.cages.find(c => c.id === sel.value);
+        slotSel.innerHTML = slotOptions(cage);
+      });
+    });
+
+    function cageCard(c) {
+      const slots = Array.from({ length:c.capacity }, (_, i) => {
+        const no = String(i + 1);
+        const occupant = c.slots.find(s => s.no === no);
+        return `<div class="slot ${occupant ? "used" : ""}">
+          <span>${no}#</span>
+          ${occupant ? `<b>${esc(occupant.ringNo)}</b><button type="button" class="small ghost" data-unload="${c.id}" data-slot="${no}">卸</button>` : `<span class="meta">空</span>`}
+        </div>`;
+      }).join("");
+      const last = c.events[c.events.length - 1];
+      let note = "";
+      if (c.status === "stopped" && last?.type === "disinfect") note = `停用原因：${esc(last.message || last.failReason)}`;
+      if (c.status === "pending_review") note = `消毒止 ${fmt(last?.endedAt)} · 批号 ${esc(last?.batchNo)}`;
+      if (c.status === "in_use") note = `押运人：${esc(c.escort || "未登记")}`;
+      return `<article class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <h3>${c.id}</h3><span class="pill s-${c.status}">${STATUS_TEXT[c.status]}</span>
+        </div>
+        <div class="meta">${esc(note)}</div>
+        <div class="slots">${slots}</div>
+        <div class="inline-actions">
+          ${c.status === "pending_disinfection" ? `<button type="button" class="small" data-fill-disinfect="${c.id}">登记消毒</button>` : ""}
+          ${c.status === "pending_review" ? `<button type="button" class="small" data-fill-review="${c.id}">次日复核</button>` : ""}
+          ${c.status === "stopped" ? `<button type="button" class="small" data-fill-disinfect="${c.id}">整改后重新消毒</button>` : ""}
+        </div>
+      </article>`;
+    }
+
+    function quickList(ids, kind) {
+      if (!ids.length) return '<span class="meta">暂无</span>';
+      return ids.map(id => {
+        const c = overview.cages.find(x => x.id === id);
+        const attr = kind === "disinfect" ? `data-fill-disinfect="${id}"` : `data-fill-review="${id}"`;
+        return `<button type="button" class="small ghost" ${attr}>${id}${kind === "disinfect" ? "（登记消毒）" : "（复核）"}</button>`;
+      }).join("");
+    }
+
+    function render() {
+      const o = overview;
+      $("#stPendingD").textContent = o.pendingDisinfection.length;
+      $("#stFree").textContent = o.availableSlots.reduce((s, x) => s + x.freeSlots, 0);
+      $("#stHold").textContent = `${o.stopped.length} / ${o.pendingReview.length}`;
+      $("#pendingList").innerHTML = quickList(o.pendingDisinfection, "disinfect");
+      $("#reviewList").innerHTML = quickList(o.pendingReview, "review");
+      $("#stoppedList").innerHTML = o.stopped.length
+        ? o.stopped.map(id => { const c = o.cages.find(x => x.id === id); const e = [...c.events].reverse().find(e => e.type === "disinfect"); return `<span class="pill s-stopped">${id} · ${esc(e?.message || e?.failReason || "")}</span>`; }).join("")
+        : '<span class="meta">暂无</span>';
+      $("#cageCards").innerHTML = o.cages.map(cageCard).join("");
+      fillSelectors();
+      bindCardButtons();
+    }
+
+    function bindCardButtons() {
+      document.querySelectorAll("[data-unload]").forEach(btn => btn.onclick = () => {
+        const f = $("#fUnload");
+        f.cageId.value = btn.dataset.unload;
+        f.cageId.dispatchEvent(new Event("change"));
+        f.slot.value = btn.dataset.slot;
+        f.scrollIntoView({ behavior:"smooth", block:"center" });
+      });
+      document.querySelectorAll("[data-fill-disinfect]").forEach(btn => btn.onclick = () => {
+        const f = $("#fDisinfect");
+        f.cageId.value = btn.dataset.fillDisinfect;
+        f.scrollIntoView({ behavior:"smooth", block:"center" });
+      });
+      document.querySelectorAll("[data-fill-review]").forEach(btn => btn.onclick = () => {
+        const f = $("#fReview");
+        f.cageId.value = btn.dataset.fillReview;
+        f.date.value = new Date().toISOString().slice(0, 10);
+        f.scrollIntoView({ behavior:"smooth", block:"center" });
+      });
+    }
+
+    async function refresh() { overview = await api("/api/cages/overview"); render(); }
+
+    $("#fLoad").onsubmit = async e => {
+      e.preventDefault();
+      const f = e.target, msg = bindMsg(f), data = Object.fromEntries(new FormData(f).entries());
+      try {
+        await api(`/api/cages/${encodeURIComponent(data.cageId)}/load`, { method:"POST", body:JSON.stringify(data) });
+        msg(true, "装鸽成功。"); await refresh();
+      } catch (err) { msg(false, "[" + (err.reason||"error") + "] " + err.message); }
+    };
+    $("#fMove").onsubmit = async e => {
+      e.preventDefault();
+      const f = e.target, msg = bindMsg(f), data = Object.fromEntries(new FormData(f).entries());
+      try {
+        await api("/api/moves", { method:"POST", body:JSON.stringify(data) });
+        msg(true, "换笼已记录。"); await refresh();
+      } catch (err) { msg(false, "[" + (err.reason||"error") + "] " + err.message); }
+    };
+    $("#fUnload").onsubmit = async e => {
+      e.preventDefault();
+      const f = e.target, msg = bindMsg(f), data = Object.fromEntries(new FormData(f).entries());
+      try {
+        await api(`/api/cages/${encodeURIComponent(data.cageId)}/slots/${encodeURIComponent(data.slot)}/unload`, { method:"POST", body:JSON.stringify(data) });
+        msg(true, "已卸鸽。"); await refresh();
+      } catch (err) { msg(false, "[" + (err.reason||"error") + "] " + err.message); }
+    };
+    $("#fDisinfect").onsubmit = async e => {
+      e.preventDefault();
+      const f = e.target, msg = bindMsg(f), data = Object.fromEntries(new FormData(f).entries());
+      try {
+        const r = await api(`/api/cages/${encodeURIComponent(data.cageId)}/disinfect`, { method:"POST", body:JSON.stringify(data) });
+        msg(r.verdict.passed, r.verdict.passed ? "消毒合格，进入待复核（次日复核后方可再装）。" : "判定不合格，继续停用：" + r.verdict.message);
+        await refresh();
+      } catch (err) { msg(false, "[" + (err.reason||"error") + "] " + err.message); }
+    };
+    $("#fReview").onsubmit = async e => {
+      e.preventDefault();
+      const f = e.target, msg = bindMsg(f), data = Object.fromEntries(new FormData(f).entries());
+      try {
+        await api(`/api/cages/${encodeURIComponent(data.cageId)}/review`, { method:"POST", body:JSON.stringify(data) });
+        msg(data.result === "pass", data.result === "pass" ? "复核合格，笼位恢复可用。" : "复核不合格，继续停用。");
+        await refresh();
+      } catch (err) { msg(false, "[" + (err.reason||"error") + "] " + err.message); }
+    };
+
+    // ---- 每鸽履历 ----
+    function tlLine(ev) {
+      const cage = ev.cageId;
+      switch (ev.type) {
+        case "load": return `装入 <b>${cage}</b> 笼位 ${ev.slot}；押运人 ${esc(ev.escort||"")}；经办 ${esc(ev.operator)}`;
+        case "move_in": return `由 <b>${esc(ev.fromCageId)}</b> 笼位 ${ev.fromSlot} 换入 <b>${cage}</b> 笼位 ${ev.slot}${ev.escort ? "；押运人 " + esc(ev.escort) : ""}；经办 ${esc(ev.operator)}`;
+        case "move_out": return `由 <b>${cage}</b> 笼位 ${ev.slot} 换出至 <b>${esc(ev.toCageId)}</b> 笼位 ${ev.toSlot}；经办 ${esc(ev.operator)}`;
+        case "unload": return `从 <b>${cage}</b> 笼位 ${ev.slot} 卸鸽${ev.emptied ? "（该笼卸空，进入待消毒）" : ""}；经办 ${esc(ev.operator)}`;
+        default: return "";
+      }
+    }
+    async function showHistory() {
+      const ringNo = $("#historyInput").value.trim();
+      if (!ringNo) return;
+      const box = $("#historyBox");
+      try {
+        const d = await api(`/api/pigeons/${encodeURIComponent(ringNo)}/history`);
+        box.innerHTML = `<h3>${esc(d.pigeon.ringNo)} · ${esc(d.pigeon.owner)} · ${esc(d.pigeon.color)}</h3>
+          <p class="meta">当前位置：${d.current ? `<b>${esc(d.current.cageId)}</b> 笼位 ${d.current.slot}` : "不在笼（在棚/已卸）"}</p>
+          <div class="timeline">${d.timeline.length ? d.timeline.map(ev =>
+            `<div class="tl"><div>${fmt(ev.time)}</div><div>${tlLine(ev)}</div></div>`).join("")
+            : '<p class="meta">暂无周转记录。</p>'}</div>`;
+      } catch (err) { box.innerHTML = `<p class="meta s-stopped" style="padding:8px;border-radius:6px">${esc(err.message)}</p>`; }
+    }
+    $("#historyBtn").onclick = showHistory;
+    $("#historyInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); showHistory(); } });
+
+    // ---- 页签 ----
+    function tab(turnover) {
+      $("#viewTurnover").classList.toggle("hidden", !turnover);
+      $("#viewPedigree").classList.toggle("hidden", turnover);
+      $("#tabTurnover").classList.toggle("active", turnover);
+      $("#tabTurnover").classList.toggle("ghost", !turnover);
+      $("#tabPedigree").classList.toggle("active", !turnover);
+      $("#tabPedigree").classList.toggle("ghost", turnover);
+    }
+    $("#tabTurnover").onclick = () => tab(true);
+    $("#tabPedigree").onclick = () => { tab(false); loadPigeons(); };
+
+    // ---- 原血统档案页逻辑 ----
+    let pigeons = [];
+    async function loadPigeons() {
+      pigeons = await api("/api/pigeons");
+      $("#cards").innerHTML = pigeons.map(p => `<article class="card">
+        <h3>${esc(p.ringNo)}</h3><span class="pill">${esc(p.owner)}</span>
+        <div class="meta">${esc(p.color)} · ${esc(p.loft)}</div>
+        <div>父：${esc(p.fatherRing || "未登记")}</div><div>母：${esc(p.motherRing || "未登记")}</div>
+        <label>录入转让</label><input data-to="${esc(p.ringNo)}" placeholder="新归属人">
+        <button type="button" data-transfer="${esc(p.ringNo)}" class="small">保存转让</button>
+        <label>归巢成绩</label><input data-race="${esc(p.ringNo)}" placeholder="赛事/距离/名次，如200公里/200/6">
+        <button type="button" data-score="${esc(p.ringNo)}" class="small ghost">保存成绩</button>
+      </article>`).join("");
+      document.querySelectorAll("[data-transfer]").forEach(btn => btn.onclick = async () => {
+        const ringNo = btn.dataset.transfer, to = document.querySelector(`[data-to="${CSS.escape(ringNo)}"]`).value;
+        await api(`/api/pigeons/${encodeURIComponent(ringNo)}/transfers`, { method:"POST", body:JSON.stringify({ to }) });
+        loadPigeons();
+      });
+      document.querySelectorAll("[data-score]").forEach(btn => btn.onclick = async () => {
+        const ringNo = btn.dataset.score;
+        const raw = document.querySelector(`[data-race="${CSS.escape(ringNo)}"]`).value.split("/");
+        await api(`/api/pigeons/${encodeURIComponent(ringNo)}/races`, { method:"POST", body:JSON.stringify({ event: raw[0]||"未命名赛事", distance:Number(raw[1]||0), rank:Number(raw[2]||0) }) });
+        loadPigeons();
+      });
+    }
+    $("#searchBtn").onclick = async () => {
+      try {
+        const d = await api(`/api/pigeons/${encodeURIComponent($("#search").value)}/relation`);
+        const p = d.pigeon;
+        $("#detail").innerHTML = `<b>${esc(p.ringNo)}</b> 血统档案
+          <div class="meta" style="margin-top:6px">父：${esc(d.father?.ringNo || p.fatherRing || "未登记")} ｜ 母：${esc(d.mother?.ringNo || p.motherRing || "未登记")}</div>
+          <div class="meta">子代：${esc(d.children.map(c => c.ringNo).join("、") || "暂无")}</div>
+          <div class="meta">转让：${esc(p.transfers.map(t => t.from + "→" + t.to).join(" / ") || "暂无")}</div>
+          <div class="meta">归巢：${esc(p.races.map(r => r.event + " 第" + r.rank + "名").join(" / ") || "暂无")}</div>`;
+      } catch { $("#detail").textContent = "未找到该足环。"; }
+    };
+    $("#formPigeon").onsubmit = async e => {
+      e.preventDefault();
+      const f = e.target, msg = bindMsg(f);
+      try {
+        await api("/api/pigeons", { method:"POST", body:JSON.stringify(Object.fromEntries(new FormData(f).entries())) });
+        f.reset(); msg(true, "档案已保存。"); loadPigeons();
+      } catch (err) { msg(false, err.message); }
+    };
+
+    // ---- 初始化：消毒表单默认时间 ----
+    (function initTimes() {
+      const now = new Date();
+      const f = $("#fDisinfect");
+      f.startedAt.value = localInput(now);
+      f.endedAt.value = localInput(new Date(now.getTime() + 15 * 60000));
+      $("#fReview").date.value = "";
+    })();
+
+    $("#reload").onclick = refresh;
+    refresh().catch(err => { document.body.insertAdjacentHTML("afterbegin", `<div class="msg err" style="display:block">${esc(err.message)}</div>`); });
+  </script>
+</body>
+</html>

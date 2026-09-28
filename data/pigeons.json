@@ -52,5 +52,79 @@
       "transfers": [],
       "races": []
     }
+  ],
+  "cages": [
+    {
+      "id": "Y-01",
+      "events": [
+        {
+          "id": "Y-01-L1",
+          "type": "load",
+          "time": "2026-09-28T14:39:54.223Z",
+          "slot": "1",
+          "ringNo": "CHN-2026-001",
+          "escort": "押运员周强",
+          "operator": "登记员李敏"
+        },
+        {
+          "id": "Y-01-L2",
+          "type": "load",
+          "time": "2026-09-28T14:44:54.223Z",
+          "slot": "2",
+          "ringNo": "CHN-2022-188",
+          "escort": "押运员周强",
+          "operator": "登记员李敏"
+        }
+      ],
+      "slots": {
+        "1": "CHN-2026-001",
+        "2": "CHN-2022-188"
+      }
+    },
+    {
+      "id": "Y-02",
+      "events": [
+        {
+          "id": "Y-02-L1",
+          "type": "load",
+          "time": "2026-09-28T14:54:54.223Z",
+          "slot": "1",
+          "ringNo": "CHN-2023-512",
+          "escort": "押运员周强",
+          "operator": "登记员李敏"
+        }
+      ],
+      "slots": {
+        "1": "CHN-2023-512"
+      }
+    },
+    {
+      "id": "Y-03",
+      "events": [
+        {
+          "id": "Y-03-L1",
+          "type": "load",
+          "time": "2026-09-28T11:14:54.223Z",
+          "slot": "1",
+          "ringNo": "CHN-2026-001",
+          "escort": "押运员周强",
+          "operator": "登记员李敏"
+        },
+        {
+          "id": "Y-03-U1",
+          "type": "unload",
+          "time": "2026-09-28T15:54:54.223Z",
+          "slot": "1",
+          "ringNo": "CHN-2026-001",
+          "operator": "登记员李敏"
+        }
+      ],
+      "slots": {}
+    },
+    {
+      "id": "Y-04",
+      "events": [],
+      "slots": {}
+    }
   ]
 }
