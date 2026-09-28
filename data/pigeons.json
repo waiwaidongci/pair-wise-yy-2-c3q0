@@ -28,7 +28,8 @@
           "returnTime": "10:42",
           "rank": 18
         }
-      ]
+      ],
+      "cageHistory": []
     },
     {
       "ringNo": "CHN-2022-188",
@@ -39,7 +40,8 @@
       "loft": "种鸽棚",
       "vaccines": [],
       "transfers": [],
-      "races": []
+      "races": [],
+      "cageHistory": []
     },
     {
       "ringNo": "CHN-2023-512",
@@ -50,7 +52,106 @@
       "loft": "种鸽棚",
       "vaccines": [],
       "transfers": [],
-      "races": []
+      "races": [],
+      "cageHistory": []
+    }
+  ],
+  "cages": [
+    {
+      "id": "C-01",
+      "status": "available",
+      "occupant": null,
+      "disinfection": null,
+      "review": null,
+      "lastFail": [],
+      "history": [
+        {
+          "at": "2026-09-28T16:07:36.909Z",
+          "action": "create"
+        }
+      ]
+    },
+    {
+      "id": "C-02",
+      "status": "available",
+      "occupant": null,
+      "disinfection": null,
+      "review": null,
+      "lastFail": [],
+      "history": [
+        {
+          "at": "2026-09-28T16:07:36.909Z",
+          "action": "create"
+        }
+      ]
+    },
+    {
+      "id": "C-03",
+      "status": "available",
+      "occupant": null,
+      "disinfection": null,
+      "review": null,
+      "lastFail": [],
+      "history": [
+        {
+          "at": "2026-09-28T16:07:36.909Z",
+          "action": "create"
+        }
+      ]
+    },
+    {
+      "id": "C-04",
+      "status": "available",
+      "occupant": null,
+      "disinfection": null,
+      "review": null,
+      "lastFail": [],
+      "history": [
+        {
+          "at": "2026-09-28T16:07:36.909Z",
+          "action": "create"
+        }
+      ]
+    },
+    {
+      "id": "C-05",
+      "status": "in_use",
+      "occupant": "CHN-2026-001",
+      "disinfection": null,
+      "review": null,
+      "lastFail": [],
+      "history": [
+        {
+          "at": "2026-09-28T16:07:36.909Z",
+          "action": "create"
+        },
+        {
+          "at": "2026-09-28T16:07:36.909Z",
+          "action": "load",
+          "ringNo": "CHN-2026-001",
+          "operator": "老周"
+        }
+      ]
+    },
+    {
+      "id": "C-06",
+      "status": "pending_disinfection",
+      "occupant": null,
+      "disinfection": null,
+      "review": null,
+      "lastFail": [],
+      "history": [
+        {
+          "at": "2026-09-28T16:07:36.909Z",
+          "action": "create"
+        },
+        {
+          "at": "2026-09-28T16:07:36.909Z",
+          "action": "unload",
+          "ringNo": "CHN-2026-001",
+          "operator": "老周"
+        }
+      ]
     }
   ]
 }
